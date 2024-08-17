@@ -14,6 +14,9 @@ importers:
       '@babel/plugin-transform-react-jsx':
         specifier: ^7.25.2
         version: 7.25.2(@babel/core@7.25.2)
+      escape-html:
+        specifier: ^1.0.3
+        version: 1.0.3
       express:
         specifier: ^4.19.2
         version: 4.19.2
