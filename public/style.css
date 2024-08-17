@@ -1,0 +1,140 @@
+*,
+*::after,
+*::before {
+  box-sizing: border-box;
+}
+
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+ul,
+ol,
+li,
+figure,
+figcaption,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto 2fr auto;
+  font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
+  transition: background-color 0.5s ease-in;
+}
+.home-page {
+  background-color: seashell;
+}
+.recipe-page {
+  background-color: lightgray;
+}
+.main-header {
+  padding: 16px;
+  border-bottom: 2px solid;
+  a {
+    font-size: 1.2rem;
+    text-decoration: none;
+    color: hsl(0 0% 40%);
+  }
+}
+.container {
+  padding: 16px;
+}
+footer {
+  border-top: 2px solid hsl(0 0% 40%);
+  padding: 16px;
+}
+.recipe-list {
+  list-style: none;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.recipe-card:is(:visited, :link) {
+  color: hsl(0 0% 40%);
+  text-decoration: none;
+}
+.recipe-card .content {
+  place-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.recipe-card .recipe-title {
+  font-size: 1.5rem;
+}
+.content:has(.recipe-image) {
+  overflow: hidden;
+  padding: 0 0 16px;
+}
+.recipe-card .recipe-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.recipe {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  max-width: 800px;
+  margin: 0 auto;
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  .recipe-title {
+    font-size: 1.5rem;
+  }
+  .recipe-image {
+    height: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    margin: auto -16px;
+  }
+  .recipe-details {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+    .recipe-ingredients {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      h2 {
+        align-self: center;
+      }
+      .recipe-ingredients li {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+    }
+    .recipe-instructions {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      h2 {
+        align-self: center;
+      }
+      .recipe-instructions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+    }
+  }
+}
