@@ -1,12 +1,14 @@
 import { hydrateRoot } from "https://esm.sh/react-dom@^18/client?dev";
+import { rebuildJSXWithClientComponents } from "./common.js";
 let currentPathname = window.location.pathname;
 
 function getInitialJSX() {
   const clientJSX = JSON.parse(window.__INITIAL_JSX__, restoreToken);
-  return clientJSX;
+
+  return rebuildJSXWithClientComponents(clientJSX);
 }
 
-const root = hydrateRoot(document, getInitialJSX());
+const root = hydrateRoot(document, await getInitialJSX());
 
 function restoreToken(key, value) {
   if (value === "$R") {
@@ -25,8 +27,9 @@ async function fetchJSX(pathname) {
 async function navigate(pathname) {
   currentPathname = pathname;
   const clientJSX = await fetchJSX(pathname);
+  const finalJSX = await rebuildJSXWithClientComponents(clientJSX);
   if (pathname === currentPathname) {
-    root.render(clientJSX);
+    root.render(finalJSX);
   }
 }
 window.addEventListener("click", (event) => {

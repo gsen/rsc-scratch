@@ -2,6 +2,10 @@ import express from "express";
 import escapeHTML from "escape-html";
 import { readdir, readFile } from "node:fs/promises";
 import { renderToString } from "react-dom/server";
+import Author from "./public/components/author.js";
+import { babelOptions, rebuildJSXWithClientComponents } from "./public/common.js";
+import babel from "@babel/core";
+import Counter from "./public/components/counter.js";
 const app = express();
 const port = 3000;
 
@@ -52,8 +56,16 @@ async function convertJSXToClientJSX(jsx) {
       } else if (typeof jsx.type === "function") {
         const Component = jsx.type;
         const props = jsx.props;
-        const componentJSX = await Component(props);
-        return convertJSXToClientJSX(componentJSX);
+        if (Component["__clientComponent__"]) {
+          return {
+            ...jsx,
+            type: { file: Component["__clientComponent__"] },
+            props: await convertJSXToClientJSX(Object.fromEntries(Object.entries(props))),
+          };
+        } else {
+          const componentJSX = await Component(props);
+          return convertJSXToClientJSX(componentJSX);
+        }
       } else {
         throw new Error("Not Implemented yet");
       }
@@ -68,21 +80,13 @@ async function convertJSXToClientJSX(jsx) {
   } else throw new Error("Not implemented yet");
 }
 
-function Author({ firstName, lastName }) {
-  return (
-    <p>
-      Writen by {firstName} {lastName}
-    </p>
-  );
-}
-
 function Layout({ children }) {
   const person = { firstName: "Gaurav", lastName: "Sen" };
 
   return (
     <html>
       <head>
-        <meta charset="UTF-8" />
+        <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Hello World</title>
         <link rel="stylesheet" href="style.css" />
@@ -98,6 +102,7 @@ function Layout({ children }) {
         <main className="container">{children}</main>
         <footer>
           <Author {...person} />
+          <Counter />
         </footer>
       </body>
     </html>
@@ -191,8 +196,9 @@ function replaceToken(key, value) {
 }
 async function sendHTML(jsx, res) {
   const clientJSX = await convertJSXToClientJSX(jsx);
+  const finalJSX = await rebuildJSXWithClientComponents(clientJSX);
   // let html = await convertJSXToHTML(clientJSX);
-  let html = renderToString(clientJSX);
+  let html = renderToString(finalJSX);
   const clientJSXString = JSON.stringify(clientJSX, replaceToken);
   html += `<script src="client.js" type="module"></script>`;
   html += `<script>window.__INITIAL_JSX__ = ${JSON.stringify(clientJSXString).replace(/</g, "\\u003c")}</script>`;
@@ -205,10 +211,28 @@ async function sendJSX(jsx, res) {
   res.send(JSON.stringify(clientJSX, replaceToken));
 }
 
+app.use(async (req, res, next) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (url.searchParams.has("rcc")) {
+    url.searchParams.delete("rcc");
+    const babelResult = await babel.transformFileAsync(`public/${url.pathname}`, babelOptions);
+    if (babelResult.code) {
+      res.setHeader("Content-Type", "application/javascript");
+      res.send(babelResult.code.replaceAll("react", "https://esm.sh/react@^18?dev"));
+    }
+  } else {
+    next();
+  }
+});
+
 app.use(express.static("public"));
 
 app.get("/*", async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  if (url.pathname === "/favicon.ico") {
+    res.send("");
+    return;
+  }
   if (url.searchParams.has("jsx")) {
     url.searchParams.delete("jsx");
     sendJSX(<Router url={url.pathname} />, res);
