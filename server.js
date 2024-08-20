@@ -1,6 +1,7 @@
 import express from "express";
 import escapeHTML from "escape-html";
 import { readdir, readFile } from "node:fs/promises";
+import { renderToString } from "react-dom/server";
 const app = express();
 const port = 3000;
 
@@ -33,6 +34,37 @@ async function convertJSXToHTML(jsx) {
         return convertJSXToHTML(componentJSX);
       }
     } else throw new Error("Cannot render an object");
+  } else throw new Error("Not implemented yet");
+}
+
+async function convertJSXToClientJSX(jsx) {
+  if (typeof jsx === "string" || typeof jsx === "number") {
+    return jsx;
+  } else if (Array.isArray(jsx)) {
+    return Promise.all(jsx.map(convertJSXToClientJSX));
+  } else if (typeof jsx === "object") {
+    if (jsx.$$typeof === Symbol.for("react.element")) {
+      if (typeof jsx.type === "string") {
+        return {
+          ...jsx,
+          props: await convertJSXToClientJSX(jsx.props),
+        };
+      } else if (typeof jsx.type === "function") {
+        const Component = jsx.type;
+        const props = jsx.props;
+        const componentJSX = await Component(props);
+        return convertJSXToClientJSX(componentJSX);
+      } else {
+        throw new Error("Not Implemented yet");
+      }
+    } else {
+      const result = Object.fromEntries(
+        await Promise.all(
+          Object.entries(jsx).map(async ([propName, value]) => [propName, await convertJSXToClientJSX(value)])
+        )
+      );
+      return result;
+    }
   } else throw new Error("Not implemented yet");
 }
 
@@ -149,11 +181,40 @@ function Router({ url }) {
   return <Layout>{page}</Layout>;
 }
 
+function replaceToken(key, value) {
+  if (value === Symbol.for("react.element")) {
+    return "$R";
+  } else if (typeof value === "string" && value.startsWith("$")) {
+    return "$" + value;
+  }
+  return value;
+}
+async function sendHTML(jsx, res) {
+  const clientJSX = await convertJSXToClientJSX(jsx);
+  // let html = await convertJSXToHTML(clientJSX);
+  let html = renderToString(clientJSX);
+  const clientJSXString = JSON.stringify(clientJSX, replaceToken);
+  html += `<script src="client.js" type="module"></script>`;
+  html += `<script>window.__INITIAL_JSX__ = ${JSON.stringify(clientJSXString).replace(/</g, "\\u003c")}</script>`;
+  res.send(html);
+}
+
+async function sendJSX(jsx, res) {
+  const clientJSX = await convertJSXToClientJSX(jsx);
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify(clientJSX, replaceToken));
+}
+
 app.use(express.static("public"));
 
 app.get("/*", async (req, res) => {
-  const html = await convertJSXToHTML(<Router url={req.url} />);
-  res.send(html);
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (url.searchParams.has("jsx")) {
+    url.searchParams.delete("jsx");
+    sendJSX(<Router url={url.pathname} />, res);
+  } else {
+    sendHTML(<Router url={url.pathname} />, res);
+  }
 });
 
 app.listen(port, () => {
